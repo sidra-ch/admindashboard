@@ -1,0 +1,27 @@
+{
+  "name": "fleetrent-pro",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n admin,api -c cyan,green \"npm run dev:admin\" \"npm run dev:api\"",
+    "dev:admin": "npm run dev -w @fleetrent/admin-web",
+    "dev:api": "npm run start:dev -w @fleetrent/backend-api",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "db:migrate": "npm run prisma:migrate -w @fleetrent/backend-api",
+    "db:generate": "npm run prisma:generate -w @fleetrent/backend-api",
+    "db:seed": "npm run prisma:seed -w @fleetrent/backend-api"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "npm": ">=11.0.0"
+  }
+}

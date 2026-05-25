@@ -1,0 +1,820 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL")
+  extensions = [postgis]
+}
+
+enum SubscriptionPlan {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+}
+
+enum AuditActionType {
+  AUTH_LOGIN
+  AUTH_REFRESH
+  AUTH_LOGOUT
+  USER_CREATED
+  USER_UPDATED
+  TENANT_UPDATED
+  BRANCH_CREATED
+  BRANDING_UPDATED
+  CAR_CREATED
+  CAR_UPDATED
+  CUSTOMER_CREATED
+  CUSTOMER_UPDATED
+  RENTAL_CREATED
+  RENTAL_EXTENDED
+  RENTAL_RETURNED
+  PAYMENT_CREATED
+  PAYMENT_UPDATED
+  MAINTENANCE_CREATED
+  MAINTENANCE_UPDATED
+  DOCUMENT_UPLOADED
+}
+
+enum MaintenanceStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum MaintenanceType {
+  ROUTINE_SERVICE
+  TYRE_REPLACEMENT
+  BRAKE_SERVICE
+  ENGINE_REPAIR
+  BODY_REPAIR
+  ELECTRICAL
+  OTHER
+}
+
+enum DocumentType {
+  REGISTRATION
+  INSURANCE
+  ROADWORTHY
+  LICENCE
+  CONTRACT
+  OTHER
+}
+
+enum CarStatus {
+  AVAILABLE
+  BOOKED
+  RENTED
+  MAINTENANCE
+  DISABLED
+}
+
+enum TransmissionType {
+  MANUAL
+  AUTOMATIC
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  ELECTRIC
+  HYBRID
+  PLUGIN_HYBRID
+}
+
+enum PlateState {
+  NSW
+  VIC
+  QLD
+  WA
+  SA
+  TAS
+  ACT
+  NT
+}
+
+enum CustomerRiskLevel {
+  SAFE
+  MEDIUM
+  HIGH
+}
+
+enum CustomerStatus {
+  ACTIVE
+  PENDING_VERIFICATION
+  BLACKLISTED
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  CONVERTED
+}
+
+enum RentalStatus {
+  ACTIVE
+  COMPLETED
+  OVERDUE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  STRIPE
+  CARD
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+}
+
+model Tenant {
+  id                    String                 @id @default(cuid())
+  name                  String
+  slug                  String                 @unique
+  subscriptionPlan      SubscriptionPlan       @default(PRO)
+  logoUrl               String?
+  timezone              String                 @default("Australia/Sydney")
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  users                 User[]
+  branches              Branch[]
+  auditLogs             AuditLog[]
+  refreshTokens         RefreshToken[]
+  cars                  Car[]
+  customers             Customer[]
+  bookings              Booking[]
+  rentals               Rental[]
+  rentalExtensions      RentalExtension[]
+  payments              Payment[]
+  invoices              Invoice[]
+  maintenanceJobs       MaintenanceJob[]
+  documents             Document[]
+  gpsDevices            GpsDevice[]
+  gpsTrackingLogs       GpsTrackingLog[]
+  gpsLiveStatuses       GpsLiveStatus[]
+  geofences             Geofence[]
+  geofenceEvents        GeofenceEvent[]
+  notifications         Notification[]
+  notificationTemplates NotificationTemplate[]
+  staffTasks            StaffTask[]
+  maintenanceParts      MaintenancePart[]
+  damageReports         DamageReport[]
+  carImages             CarImage[]
+  carCategories         CarCategory[]
+
+  @@index([slug])
+}
+
+model Branch {
+  id        String    @id @default(cuid())
+  tenantId  String
+  name      String
+  code      String
+  address   String?
+  city      String?
+  state     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users     User[]
+  cars      Car[]
+  bookings  Booking[]
+  rentals   Rental[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+}
+
+model Role {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  name        String
+  description String?
+  permissions RolePermission[]
+  users       User[]
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  name        String
+  description String?
+  roles       RolePermission[]
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model User {
+  id            String         @id @default(cuid())
+  tenantId      String
+  branchId      String?
+  roleId        String
+  firstName     String
+  lastName      String
+  email         String
+  phone         String?
+  passwordHash  String
+  status        UserStatus     @default(ACTIVE)
+  lastLoginAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch        Branch?        @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  role          Role           @relation(fields: [roleId], references: [id])
+  refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([branchId])
+  @@index([roleId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  tenantId  String
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id         String          @id @default(cuid())
+  tenantId   String
+  userId     String?
+  actionType AuditActionType
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime        @default(now())
+  tenant     Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([userId])
+}
+
+model Car {
+  id                   String            @id @default(cuid())
+  tenantId             String
+  branchId             String
+  categoryId           String?
+  
+  // Basic Info
+  brand                String
+  model                String
+  variant              String?
+  year                 Int
+  color                String?
+  registrationNumber   String
+  vin                  String?
+  plateState           PlateState        @default(NSW)
+  
+  // Performance
+  engineSize           String?           // e.g., "2.0L"
+  horsepower           Int?
+  transmissionType     TransmissionType  @default(AUTOMATIC)
+  fuelType             FuelType          @default(PETROL)
+  fuelTankCapacity     Int?              // in liters
+  
+  // Capacity
+  seats                Int               @default(5)
+  doors                Int               @default(4)
+  bagsCapacity         Int?              @default(2)
+  
+  // Rental Specs
+  dailyRateCents       Int
+  weeklyRateCents      Int?
+  monthlyRateCents     Int?
+  depositAmountCents   Int?
+  lateFeePerDayCents   Int?
+  
+  // Condition & Service
+  odometerKm           Int               @default(0)
+  nextServiceKm        Int?
+  nextServiceDue       DateTime?
+  lastServiceDate      DateTime?
+  lastServiceKm        Int?
+  insuranceExpiry      DateTime?
+  
+  // Extra Features
+  trackerInstalled     Boolean           @default(false)
+  reverseCamera        Boolean           @default(false)
+  bluetooth            Boolean           @default(false)
+  cruiseControl        Boolean           @default(false)
+  sunroof              Boolean           @default(false)
+  childSeatSupport     Boolean           @default(false)
+  appleCarPlay         Boolean           @default(false)
+  androidAuto          Boolean           @default(false)
+  
+  // Status
+  status               CarStatus         @default(AVAILABLE)
+  
+  // Timestamps
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  
+  // Relations
+  tenant               Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch               Branch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  category             CarCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  bookings             Booking[]
+  rentals              Rental[]
+  maintenanceJobs      MaintenanceJob[]
+  documents            Document[]
+  gpsDevice            GpsDevice?
+  images               CarImage[]
+
+  @@unique([tenantId, registrationNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, brand])
+  @@index([tenantId, transmissionType])
+  @@index([tenantId, fuelType])
+  @@index([branchId])
+}
+
+model Customer {
+  id            String            @id @default(cuid())
+  tenantId      String
+  firstName     String
+  lastName      String
+  email         String?
+  phone         String
+  licenseNumber String
+  licenseExpiry DateTime?
+  riskLevel     CustomerRiskLevel @default(SAFE)
+  status        CustomerStatus    @default(ACTIVE)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  tenant        Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  bookings      Booking[]
+  rentals       Rental[]
+  payments      Payment[]
+
+  @@unique([tenantId, licenseNumber])
+  @@index([tenantId, status])
+}
+
+model Booking {
+  id               String        @id @default(cuid())
+  tenantId         String
+  branchId         String
+  carId            String
+  customerId       String
+  startDate        DateTime
+  endDate          DateTime
+  totalAmountCents Int
+  status           BookingStatus @default(PENDING)
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch           Branch        @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  car              Car           @relation(fields: [carId], references: [id], onDelete: Restrict)
+  customer         Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  rental           Rental?
+
+  @@index([tenantId, status, startDate])
+  @@index([carId])
+  @@index([customerId])
+}
+
+model Rental {
+  id                 String            @id @default(cuid())
+  tenantId           String
+  branchId           String
+  bookingId          String?           @unique
+  carId              String
+  customerId         String
+  pickupAt           DateTime
+  expectedReturnAt   DateTime
+  actualReturnAt     DateTime?
+  startOdometerKm    Int
+  endOdometerKm      Int?
+  totalAmountCents   Int
+  balanceDueCents    Int
+  depositAmountCents Int               @default(0)
+  lateFeeAmountCents Int               @default(0)
+  damageChargeCents  Int               @default(0)
+  fuelPenaltyCents   Int               @default(0)
+  status             RentalStatus      @default(ACTIVE)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  branch             Branch            @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  booking            Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  car                Car               @relation(fields: [carId], references: [id], onDelete: Restrict)
+  customer           Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  extensions         RentalExtension[]
+  payments           Payment[]
+  invoice            Invoice?
+
+  @@index([tenantId, status, expectedReturnAt])
+  @@index([carId])
+  @@index([customerId])
+}
+
+model RentalExtension {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  rentalId              String
+  newReturnAt           DateTime
+  additionalAmountCents Int
+  notes                 String?
+  createdAt             DateTime @default(now())
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rental                Rental   @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, rentalId])
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  tenantId      String
+  rentalId      String        @unique
+  invoiceNumber String
+  subtotalCents Int
+  taxCents      Int           @default(0)
+  totalCents    Int
+  status        InvoiceStatus @default(ISSUED)
+  pdfUrl        String?
+  issuedAt      DateTime      @default(now())
+  dueAt         DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  tenant        Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rental        Rental        @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  payments      Payment[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  tenantId    String
+  rentalId    String?
+  customerId  String?
+  invoiceId   String?
+  amountCents Int
+  method      PaymentMethod
+  status      PaymentStatus @default(PAID)
+  reference   String?
+  paidAt      DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rental      Rental?       @relation(fields: [rentalId], references: [id], onDelete: SetNull)
+  customer    Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  invoice     Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, createdAt])
+  @@index([rentalId])
+  @@index([invoiceId])
+}
+
+model MaintenanceJob {
+  id          String            @id @default(cuid())
+  tenantId    String
+  carId       String
+  type        MaintenanceType
+  status      MaintenanceStatus @default(SCHEDULED)
+  description String?
+  odometerKm  Int?
+  scheduledAt DateTime
+  completedAt DateTime?
+  costCents   Int               @default(0)
+  vendor      String?
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  tenant      Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  car         Car               @relation(fields: [carId], references: [id], onDelete: Cascade)
+  parts       MaintenancePart[]
+
+  @@index([tenantId, status, scheduledAt])
+  @@index([carId])
+}
+
+model Document {
+  id            String       @id @default(cuid())
+  tenantId      String
+  carId         String?
+  entityType    String
+  entityId      String
+  type          DocumentType
+  name          String
+  fileUrl       String
+  fileSizeBytes Int          @default(0)
+  mimeType      String?
+  expiresAt     DateTime?
+  uploadedAt    DateTime     @default(now())
+  tenant        Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  car           Car?         @relation(fields: [carId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([carId])
+  @@index([expiresAt])
+}
+
+// GPS Tracking System
+model GpsDevice {
+  id           String           @id @default(cuid())
+  tenantId     String
+  carId        String           @unique
+  imei         String           @unique
+  simNumber    String?
+  provider     String?
+  isActive     Boolean          @default(true)
+  lastPingAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  tenant       Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  car          Car              @relation(fields: [carId], references: [id], onDelete: Cascade)
+  trackingLogs GpsTrackingLog[]
+  liveStatus   GpsLiveStatus?
+
+  @@index([tenantId])
+  @@index([imei])
+}
+
+model GpsTrackingLog {
+  id               String                                @id @default(cuid())
+  tenantId         String
+  deviceId         String
+  location         Unsupported("geography(Point, 4326)")
+  lat              Float
+  lng              Float
+  speedKmh         Float?
+  heading          Float?
+  altitude         Float?
+  ignitionOn       Boolean                               @default(false)
+  batteryVoltage   Float?
+  fuelLevelPercent Float?
+  recordedAt       DateTime
+  createdAt        DateTime                              @default(now())
+  tenant           Tenant                                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device           GpsDevice                             @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, deviceId, recordedAt])
+  @@index([recordedAt])
+}
+
+model GpsLiveStatus {
+  id               String                                @id @default(cuid())
+  tenantId         String
+  deviceId         String                                @unique
+  location         Unsupported("geography(Point, 4326)")
+  lat              Float
+  lng              Float
+  speedKmh         Float?
+  heading          Float?
+  altitude         Float?
+  ignitionOn       Boolean                               @default(false)
+  batteryVoltage   Float?
+  fuelLevelPercent Float?
+  recordedAt       DateTime
+  updatedAt        DateTime                              @updatedAt
+  tenant           Tenant                                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  device           GpsDevice                             @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Geofence {
+  id          String                                @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  center      Unsupported("geography(Point, 4326)")
+  centerLat   Float
+  centerLng   Float
+  radiusM     Int
+  isActive    Boolean                               @default(true)
+  createdAt   DateTime                              @default(now())
+  updatedAt   DateTime                              @updatedAt
+  tenant      Tenant                                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  events      GeofenceEvent[]
+
+  @@index([tenantId])
+}
+
+model GeofenceEvent {
+  id         String   @id @default(cuid())
+  tenantId   String
+  geofenceId String
+  deviceId   String
+  carId      String
+  eventType  String // ENTER, EXIT
+  lat        Float
+  lng        Float
+  occurredAt DateTime
+  createdAt  DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  geofence   Geofence @relation(fields: [geofenceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, carId, occurredAt])
+  @@index([geofenceId])
+}
+
+// Notifications System
+enum NotificationType {
+  RENTAL_DUE
+  RENTAL_OVERDUE
+  PAYMENT_DUE
+  PAYMENT_RECEIVED
+  MAINTENANCE_DUE
+  INSURANCE_EXPIRY
+  REGISTRATION_EXPIRY
+  GEOFENCE_ALERT
+  SYSTEM_ALERT
+}
+
+enum NotificationChannel {
+  DASHBOARD
+  EMAIL
+  SMS
+  PUSH
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  tenantId   String
+  userId     String?
+  type       NotificationType
+  title      String
+  message    String
+  entityType String?
+  entityId   String?
+  isRead     Boolean          @default(false)
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+  tenant     Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId, isRead])
+  @@index([createdAt])
+}
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  tenantId  String
+  type      NotificationType
+  channel   NotificationChannel
+  subject   String?
+  template  String
+  isActive  Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+  tenant    Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, type, channel])
+  @@index([tenantId])
+}
+
+// Staff Tasks & Operations
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskType {
+  CLEANING
+  DELIVERY
+  PICKUP
+  WORKSHOP_VISIT
+  INSPECTION
+  FUEL_REFILL
+  OTHER
+}
+
+model StaffTask {
+  id           String     @id @default(cuid())
+  tenantId     String
+  assignedToId String?
+  carId        String?
+  rentalId     String?
+  type         TaskType
+  title        String
+  description  String?
+  status       TaskStatus @default(PENDING)
+  priority     Int        @default(0)
+  dueAt        DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, dueAt])
+  @@index([assignedToId])
+}
+
+// Maintenance Parts Tracking
+model MaintenancePart {
+  id            String         @id @default(cuid())
+  tenantId      String
+  maintenanceId String
+  partName      String
+  partNumber    String?
+  quantity      Int            @default(1)
+  costCents     Int
+  supplier      String?
+  createdAt     DateTime       @default(now())
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  maintenance   MaintenanceJob @relation(fields: [maintenanceId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, maintenanceId])
+}
+
+// Damage Reports
+model DamageReport {
+  id          String   @id @default(cuid())
+  tenantId    String
+  rentalId    String
+  carId       String
+  description String
+  severity    String // MINOR, MODERATE, SEVERE
+  costCents   Int      @default(0)
+  imageUrls   String[]
+  reportedAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, rentalId])
+  @@index([carId])
+}
+
+// Car Images
+model CarImage {
+  id         String   @id @default(cuid())
+  tenantId   String
+  carId      String
+  imageUrl   String
+  isPrimary  Boolean  @default(false)
+  uploadedAt DateTime @default(now())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  car        Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, carId])
+}
+
+// Car Categories
+model CarCategory {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  name                  String   // Economy, Sedan, SUV, Luxury, Van, Ute, Convertible, Electric
+  icon                  String?  // Icon name or emoji
+  basePriceAdjustment   Float?   // Percentage adjustment (e.g., 10 for +10%, -5 for -5%)
+  description           String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cars                  Car[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}

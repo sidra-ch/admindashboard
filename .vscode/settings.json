@@ -1,0 +1,14 @@
+{
+  "files.associations": {
+    "**/prisma/migrations/**/*.sql": "plaintext"
+  },
+  "sql.linter.enabled": false,
+  "sql.validate.enabled": false,
+  "mssql.intelliSense.enableIntelliSense": false,
+  "mssql.linting.enableAllRules": false,
+  "[sql]": {
+    "editor.quickSuggestions": { "other": false }
+  },
+  "editor.rulers": [],
+  "typescript.tsdk": "node_modules/typescript/lib"
+}
