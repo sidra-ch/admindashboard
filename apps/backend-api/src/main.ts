@@ -31,14 +31,20 @@ async function bootstrap() {
     }),
   );
   app.useGlobalFilters(new HttpExceptionFilter());
+  const allowedOrigins = (configService.get<string>('APP_URL', '') || '')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       const isLocalDevOrigin = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin ?? '');
       if (!origin || isLocalDevOrigin) {
         callback(null, true);
+      } else if (allowedOrigins.some((o) => origin === o)) {
+        callback(null, true);
       } else {
-        const allowed = configService.get<string>('APP_URL', 'http://localhost:3001');
-        callback(origin === allowed ? null : new Error('Not allowed by CORS'), origin === allowed);
+        callback(new Error('Not allowed by CORS'), false);
       }
     },
     credentials: true,
