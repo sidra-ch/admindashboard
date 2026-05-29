@@ -1,6 +1,7 @@
 node_modules
 .next
 dist
+!packages/shared-types/dist
 coverage
 .env
 .env.local
