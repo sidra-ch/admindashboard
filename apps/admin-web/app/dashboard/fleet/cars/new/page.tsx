@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, type Resolver } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { apiClient } from '../../../../../lib/api-client';
@@ -67,7 +67,7 @@ const step2Schema = z.object({
   monthlyRateCents: optNum(0),
   depositAmountCents: optNum(0),
   odometerKm: z.coerce.number().min(0),
-  status: z.enum(['AVAILABLE', 'MAINTENANCE', 'DISABLED']).default('AVAILABLE'),
+  status: z.enum(['AVAILABLE', 'MAINTENANCE', 'DISABLED']),
 });
 const fullSchema = step1Schema.merge(step2Schema);
 type FormValues = z.infer<typeof fullSchema>;
@@ -247,7 +247,7 @@ export default function NewCarPage() {
   const [images, setImages] = useState<PreviewImage[]>([]);
 
   const { register, handleSubmit, watch, setValue, trigger, formState: { errors } } = useForm<FormValues>({
-    resolver: zodResolver(fullSchema),
+    resolver: zodResolver(fullSchema) as unknown as Resolver<FormValues>,
     defaultValues: (() => {
       if (typeof window !== 'undefined') {
         try { const d = localStorage.getItem(DRAFT_KEY); if (d) return JSON.parse(d) as FormValues; } catch {}

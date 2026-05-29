@@ -1,4 +1,4 @@
-import { BullModule } from '@nestjs/bullmq';
+// import { BullModule } from '@nestjs/bullmq'; // requires Redis
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -17,25 +17,27 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { PdfModule } from './modules/pdf/pdf.module';
 import { StorageModule } from './modules/storage/storage.module';
-// import { TrackingModule } from './modules/tracking/tracking.module';
+import { TrackingModule } from './modules/tracking/tracking.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TasksModule } from './modules/tasks/tasks.module';
-import { JobsModule } from './modules/jobs/jobs.module';
+// import { JobsModule } from './modules/jobs/jobs.module'; // requires Redis
 import { PrismaModule } from './prisma/prisma.module';
+
 import { AppLoggerModule } from './shared/logger/logger.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        connection: {
-          url: configService.get<string>('REDIS_URL', 'redis://localhost:6379'),
-        },
-      }),
-    }),
+    // BullModule disabled — Redis not running locally
+    // BullModule.forRootAsync({
+    //   inject: [ConfigService],
+    //   useFactory: (configService: ConfigService) => ({
+    //     connection: {
+    //       url: configService.get<string>('REDIS_URL', 'redis://localhost:6379'),
+    //     },
+    //   }),
+    // }),
     AppLoggerModule,
     PrismaModule,
     HealthModule,
@@ -52,10 +54,10 @@ import { AppLoggerModule } from './shared/logger/logger.module';
     DocumentsModule,
     PdfModule,
     StorageModule,
-    // TrackingModule,
+    TrackingModule,
     NotificationsModule,
     TasksModule,
-    // JobsModule, // Requires Redis - disabled for local dev without Redis
+    // JobsModule, // requires Redis
     CarCategoriesModule,
   ],
 })

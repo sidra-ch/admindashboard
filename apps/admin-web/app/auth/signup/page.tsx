@@ -160,17 +160,17 @@ export default function SignupPage() {
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="First name" icon={User} error={form.formState.errors.firstName?.message}>
-                    <input type="text" placeholder="Alex" style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} {...form.register('firstName')} />
+                    <input type="text" placeholder="Alex" style={inputStyle} onFocus={focusStyle} {...form.register('firstName')} onBlur={blurStyle} />
                   </Field>
                   <Field label="Last name" icon={User} error={form.formState.errors.lastName?.message}>
-                    <input type="text" placeholder="Chen" style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} {...form.register('lastName')} />
+                    <input type="text" placeholder="Chen" style={inputStyle} onFocus={focusStyle} {...form.register('lastName')} onBlur={blurStyle} />
                   </Field>
                 </div>
                 <Field label="Company name" icon={Building2} error={form.formState.errors.company?.message}>
-                  <input type="text" placeholder="Apex Mobility Pty Ltd" style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} {...form.register('company')} />
+                  <input type="text" placeholder="Apex Mobility Pty Ltd" style={inputStyle} onFocus={focusStyle} {...form.register('company')} onBlur={blurStyle} />
                 </Field>
                 <Field label="Work email" icon={Mail} error={form.formState.errors.email?.message}>
-                  <input type="email" placeholder="alex@company.com.au" autoComplete="email" style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} {...form.register('email')} />
+                  <input type="email" placeholder="alex@company.com.au" autoComplete="email" style={inputStyle} onFocus={focusStyle} {...form.register('email')} onBlur={blurStyle} />
                 </Field>
                 <button
                   type="button"
@@ -191,10 +191,10 @@ export default function SignupPage() {
             ) : (
               <>
                 <Field label="Password" icon={Lock} error={form.formState.errors.password?.message}>
-                  <input type="password" placeholder="Min. 10 characters" autoComplete="new-password" style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} {...form.register('password')} />
+                  <input type="password" placeholder="Min. 10 characters" autoComplete="new-password" style={inputStyle} onFocus={focusStyle} {...form.register('password')} onBlur={blurStyle} />
                 </Field>
                 <Field label="Confirm password" icon={Lock} error={form.formState.errors.confirmPassword?.message}>
-                  <input type="password" placeholder="Repeat password" autoComplete="new-password" style={inputStyle} onFocus={focusStyle} onBlur={blurStyle} {...form.register('confirmPassword')} />
+                  <input type="password" placeholder="Repeat password" autoComplete="new-password" style={inputStyle} onFocus={focusStyle} {...form.register('confirmPassword')} onBlur={blurStyle} />
                 </Field>
 
                 <div className="flex items-start gap-2">

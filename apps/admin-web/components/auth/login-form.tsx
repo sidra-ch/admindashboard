@@ -14,6 +14,17 @@ import { setStoredSession } from '../../lib/auth-storage';
 
 const V = { bg: '#0B1020', surface: '#121A2F', card: '#18233D', border: 'rgba(255,255,255,0.08)', primary: '#4DA2FF', secondary: '#00D1FF', success: '#00C27A', warning: '#FFB547', danger: '#FF5A6F', text: '#F5F7FA', textSec: '#A8B3CF', textMuted: '#6E7A99' };
 
+// ── Dev bypass credentials (remove when API is fully stable) ──────────────────
+const DEV_EMAIL = 'admin@fleetrentpro.com';
+const DEV_PASSWORD = 'Admin@12345';
+
+function buildDevSession() {
+  const payload = { sub: 'dev-admin-001', tenantId: 'dev-tenant-001', email: DEV_EMAIL, role: 'SUPER_ADMIN', exp: 4102444800 };
+  const b64 = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const fakeToken = `eyJhbGciOiJub25lIn0.${b64}.dev`;
+  return { accessToken: fakeToken, refreshToken: fakeToken, user: { sub: payload.sub, tenantId: payload.tenantId, email: payload.email, role: payload.role } };
+}
+
 const loginSchema = z.object({ email: z.string().email('Enter a valid email address'), password: z.string().min(10, 'Password must be at least 10 characters') });
 type LoginValues = z.infer<typeof loginSchema>;
 type LoginResponse = { accessToken: string; refreshToken: string; user: { sub: string; tenantId: string; email: string; role: string } };
@@ -34,7 +45,16 @@ export function LoginForm() {
       setStoredSession({ accessToken: body.accessToken, refreshToken: body.refreshToken, user: body.user });
       toast.success('Welcome back!');
       router.push(searchParams.get('redirect') ?? '/dashboard');
-    } catch (err) { toast.error(err instanceof Error ? err.message : 'Login failed'); }
+    } catch (err) {
+      // Dev bypass: only on NETWORK errors (backend unreachable), not HTTP errors
+      if (err instanceof TypeError && values.email === DEV_EMAIL && values.password === DEV_PASSWORD) {
+        setStoredSession(buildDevSession());
+        toast.success('Dev mode — logged in as admin (API offline)');
+        router.push(searchParams.get('redirect') ?? '/dashboard');
+        return;
+      }
+      toast.error(err instanceof Error ? err.message : 'Login failed');
+    }
     finally { setIsLoading(false); }
   };
 

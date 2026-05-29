@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd apps/admin-web && npx next build",
+  "buildCommand": "cd packages/shared-types && npx tsc -p tsconfig.json && cd ../../apps/admin-web && npx next build",
   "outputDirectory": "apps/admin-web/.next",
   "installCommand": "npm install",
   "framework": "nextjs",

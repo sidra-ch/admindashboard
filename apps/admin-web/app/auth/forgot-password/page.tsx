@@ -113,11 +113,11 @@ export default function ForgotPasswordPage() {
                       e.currentTarget.style.borderColor = 'oklch(0.548 0.130 256)';
                       e.currentTarget.style.boxShadow = '0 0 0 3px oklch(0.688 0.196 256 / 0.10)';
                     }}
+                    {...form.register('email')}
                     onBlur={(e) => {
                       e.currentTarget.style.borderColor = 'oklch(0.265 0.018 265)';
                       e.currentTarget.style.boxShadow = 'none';
                     }}
-                    {...form.register('email')}
                   />
                   {form.formState.errors.email && (
                     <p className="text-xs" style={{ color: 'oklch(0.70 0.18 25)' }}>
