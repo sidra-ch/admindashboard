@@ -1,21 +1,18 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { ExpressAdapter } from '@nestjs/platform-express';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import * as Sentry from '@sentry/nestjs';
 import cookieParser from 'cookie-parser';
-import * as express from 'express';
-import type { Request, Response } from 'express';
 import { AppModule } from '../src/app.module';
 import { HttpExceptionFilter } from '../src/shared/http-exception.filter';
 
-const server = express();
-let isReady = false;
+let app: NestExpressApplication;
 
 async function bootstrap() {
-  if (isReady) return;
+  if (app) return;
 
-  const app = await NestFactory.create(AppModule, new ExpressAdapter(server), {
+  app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: ['error', 'warn'],
   });
 
@@ -55,10 +52,9 @@ async function bootstrap() {
   });
 
   await app.init();
-  isReady = true;
 }
 
-export default async function handler(req: Request, res: Response) {
+export default async function handler(req: any, res: any) {
   await bootstrap();
-  server(req, res);
+  app.getHttpAdapter().getInstance()(req, res);
 }
