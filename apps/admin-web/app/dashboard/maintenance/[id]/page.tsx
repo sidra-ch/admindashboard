@@ -1,23 +1,23 @@
 'use client';
 
 import { use, useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { apiClient } from '@/lib/api-client';
-import { getStoredSession } from '@/lib/auth-storage';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wrench, ArrowLeft, Calendar, DollarSign, Car, MapPin } from 'lucide-react';
-import Link from 'next/link';
+import { Wrench, ArrowLeft, Calendar, DollarSign, Car, MapPin, Loader2, AlertTriangle, ChevronDown } from 'lucide-react';
 
-const STATUS_COLORS: Record<string, string> = {
-  SCHEDULED: 'bg-blue-100 text-blue-800',
-  IN_PROGRESS: 'bg-yellow-100 text-yellow-800',
-  COMPLETED: 'bg-green-100 text-green-800',
-  CANCELLED: 'bg-gray-100 text-gray-700',
+const V = {
+  card: '#18233D', surface: '#121A2F', border: 'rgba(255,255,255,0.08)',
+  primary: '#4DA2FF', success: '#00C27A', warning: '#FFB547', danger: '#FF5A6F',
+  text: '#F5F7FA', textSec: '#A8B3CF', textMuted: '#6E7A99',
+};
+
+const STATUS_CFG: Record<string, { color: string; bg: string }> = {
+  SCHEDULED:   { color: V.primary,   bg: 'rgba(77,162,255,0.12)' },
+  IN_PROGRESS: { color: V.warning,   bg: 'rgba(255,181,71,0.12)' },
+  COMPLETED:   { color: V.success,   bg: 'rgba(0,194,122,0.12)' },
+  CANCELLED:   { color: V.textMuted, bg: 'rgba(255,255,255,0.06)' },
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -32,18 +32,24 @@ const TYPE_LABELS: Record<string, string> = {
 
 const STATUSES = ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
 
+type MaintenanceJob = {
+  id: string; type: string; status: string;
+  description: string | null; odometerKm: number | null;
+  scheduledAt: string; completedAt: string | null;
+  costCents: number; vendor: string | null; notes: string | null;
+  car: { make: string; model: string; year: number; registrationNumber: string } | null;
+};
+
 export default function MaintenanceJobDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const qc = useQueryClient();
-  const session = getStoredSession();
   const [newStatus, setNewStatus] = useState('');
   const [updating, setUpdating] = useState(false);
 
   const { data: job, isLoading } = useQuery({
     queryKey: ['maintenance', id],
     queryFn: () => apiClient<MaintenanceJob>(`/maintenance/${id}`),
-    enabled: !!session?.accessToken,
   });
 
   async function handleStatusUpdate() {
@@ -64,116 +70,127 @@ export default function MaintenanceJobDetailPage({ params }: { params: Promise<{
     }
   }
 
-  if (isLoading) return <div className="flex justify-center py-20 text-muted-foreground">Loading...</div>;
-  if (!job) return <div className="flex justify-center py-20 text-muted-foreground">Job not found.</div>;
+  if (isLoading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px', gap: '12px' }}>
+      <Loader2 style={{ width: '22px', height: '22px', color: V.primary, animation: 'spin 1s linear infinite' }} />
+      <span style={{ color: V.textMuted, fontSize: '14px' }}>Loading job...</span>
+    </div>
+  );
+  if (!job) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px', gap: '12px' }}>
+      <AlertTriangle style={{ width: '22px', height: '22px', color: V.danger }} />
+      <span style={{ color: V.danger, fontSize: '14px' }}>Job not found.</span>
+    </div>
+  );
+
+  const sc = STATUS_CFG[job.status] ?? { color: V.textSec, bg: 'rgba(255,255,255,0.06)' };
+  const card: React.CSSProperties = { background: V.card, border: `1px solid ${V.border}`, borderRadius: '16px', padding: '18px' };
+  const inp: React.CSSProperties = { background: '#0E1728', border: `1px solid ${V.border}`, color: V.text, borderRadius: '10px', padding: '9px 13px', fontSize: '13px', outline: 'none', appearance: 'none' };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/dashboard/maintenance"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
-        <div>
-          <h1 className="text-2xl font-bold">{TYPE_LABELS[job.type] ?? job.type}</h1>
-          <p className="text-sm text-muted-foreground">Maintenance Job #{id.slice(0, 8)}</p>
+    <div style={{ maxWidth: '780px', margin: '0 auto' }} className="space-y-6">
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+        <Link href="/dashboard/maintenance">
+          <button style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(255,255,255,0.06)', border: `1px solid ${V.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: V.textSec }}>
+            <ArrowLeft style={{ width: '16px', height: '16px' }} />
+          </button>
+        </Link>
+        <div style={{ width: '44px', height: '44px', borderRadius: '12px', background: 'linear-gradient(135deg, #FFB547 0%, #E08000 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Wrench style={{ width: '20px', height: '20px', color: '#fff' }} />
         </div>
-        <Badge className={`ml-auto ${STATUS_COLORS[job.status] ?? ''}`}>{job.status.replace('_', ' ')}</Badge>
+        <div style={{ flex: 1 }}>
+          <h1 style={{ color: V.text, fontSize: '18px', fontWeight: 800 }}>{TYPE_LABELS[job.type] ?? job.type}</h1>
+          <p style={{ color: V.textMuted, fontSize: '12px', marginTop: '2px' }}>Job #{id.slice(0, 8).toUpperCase()}</p>
+        </div>
+        <span style={{ padding: '4px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, background: sc.bg, color: sc.color }}>
+          {job.status.replace('_', ' ')}
+        </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-2">
-            <Car className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm">Vehicle</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-semibold">{job.car?.make} {job.car?.model} ({job.car?.year})</p>
-            <p className="text-sm text-muted-foreground">{job.car?.registrationNumber}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm">Schedule</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-semibold">Scheduled: {new Date(job.scheduledAt).toLocaleDateString('en-AU', { dateStyle: 'medium' })}</p>
-            {job.completedAt && (
-              <p className="text-sm text-muted-foreground">Completed: {new Date(job.completedAt).toLocaleDateString('en-AU', { dateStyle: 'medium' })}</p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-2">
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm">Cost</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">${((job.costCents ?? 0) / 100).toFixed(2)}</p>
-            <p className="text-sm text-muted-foreground">AUD</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2 pb-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <CardTitle className="text-sm">Vendor</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-semibold">{job.vendor ?? '—'}</p>
-            {job.odometerKm && <p className="text-sm text-muted-foreground">Odometer: {job.odometerKm.toLocaleString()} km</p>}
-          </CardContent>
-        </Card>
+      {/* Info grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px' }}>
+        <div style={card}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <Car style={{ width: '14px', height: '14px', color: V.primary }} />
+            <p style={{ color: V.textMuted, fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em' }}>Vehicle</p>
+          </div>
+          <p style={{ color: V.text, fontSize: '14px', fontWeight: 700 }}>{job.car?.make} {job.car?.model} ({job.car?.year})</p>
+          <p style={{ color: V.textMuted, fontSize: '12px', marginTop: '2px' }}>{job.car?.registrationNumber}</p>
+        </div>
+        <div style={card}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <Calendar style={{ width: '14px', height: '14px', color: V.primary }} />
+            <p style={{ color: V.textMuted, fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em' }}>Schedule</p>
+          </div>
+          <p style={{ color: V.text, fontSize: '13px', fontWeight: 600 }}>Scheduled: {new Date(job.scheduledAt).toLocaleDateString('en-AU', { dateStyle: 'medium' })}</p>
+          {job.completedAt && <p style={{ color: V.success, fontSize: '12px', marginTop: '2px' }}>Completed: {new Date(job.completedAt).toLocaleDateString('en-AU', { dateStyle: 'medium' })}</p>}
+        </div>
+        <div style={card}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <DollarSign style={{ width: '14px', height: '14px', color: V.success }} />
+            <p style={{ color: V.textMuted, fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em' }}>Cost</p>
+          </div>
+          <p style={{ color: V.text, fontSize: '24px', fontWeight: 800 }}>${((job.costCents ?? 0) / 100).toFixed(2)}</p>
+          <p style={{ color: V.textMuted, fontSize: '11px' }}>AUD</p>
+        </div>
+        <div style={card}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <MapPin style={{ width: '14px', height: '14px', color: V.primary }} />
+            <p style={{ color: V.textMuted, fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em' }}>Vendor</p>
+          </div>
+          <p style={{ color: V.text, fontSize: '14px', fontWeight: 600 }}>{job.vendor ?? '—'}</p>
+          {job.odometerKm && <p style={{ color: V.textMuted, fontSize: '12px', marginTop: '2px' }}>Odometer: {job.odometerKm.toLocaleString()} km</p>}
+        </div>
       </div>
 
+      {/* Notes / description */}
       {(job.description || job.notes) && (
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Details</CardTitle></CardHeader>
-          <CardContent className="space-y-3">
-            {job.description && (
-              <div><Label className="text-xs text-muted-foreground uppercase tracking-wide">Description</Label><p className="mt-1">{job.description}</p></div>
-            )}
-            {job.notes && (
-              <div><Label className="text-xs text-muted-foreground uppercase tracking-wide">Notes</Label><p className="mt-1">{job.notes}</p></div>
-            )}
-          </CardContent>
-        </Card>
+        <div style={{ background: V.card, border: `1px solid ${V.border}`, borderRadius: '16px', padding: '18px' }}>
+          <p style={{ color: V.textMuted, fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.10em', marginBottom: '12px' }}>Details</p>
+          {job.description && (
+            <div style={{ marginBottom: '10px' }}>
+              <p style={{ color: V.textMuted, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Description</p>
+              <p style={{ color: V.textSec, fontSize: '13px', marginTop: '4px' }}>{job.description}</p>
+            </div>
+          )}
+          {job.notes && (
+            <div>
+              <p style={{ color: V.textMuted, fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Notes</p>
+              <p style={{ color: V.textSec, fontSize: '13px', marginTop: '4px' }}>{job.notes}</p>
+            </div>
+          )}
+        </div>
       )}
 
+      {/* Update status */}
       {job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
-        <Card>
-          <CardHeader className="flex flex-row items-center gap-2">
-            <Wrench className="h-4 w-4" />
-            <CardTitle className="text-sm">Update Status</CardTitle>
-          </CardHeader>
-          <CardContent className="flex items-center gap-3">
-            <Select onValueChange={setNewStatus}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select new status..." />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.filter((s) => s !== job.status).map((s) => (
-                  <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>
+        <div style={{ background: V.card, border: `1px solid ${V.border}`, borderRadius: '16px', padding: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+            <Wrench style={{ width: '14px', height: '14px', color: V.warning }} />
+            <p style={{ color: V.text, fontSize: '13px', fontWeight: 700 }}>Update Status</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ position: 'relative' }}>
+              <select style={{ ...inp, paddingRight: '36px', minWidth: '200px', cursor: 'pointer' }} value={newStatus} onChange={e => setNewStatus(e.target.value)}>
+                <option value="">Select new status…</option>
+                {STATUSES.filter(s => s !== job.status).map(s => (
+                  <option key={s} value={s}>{s.replace('_', ' ')}</option>
                 ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleStatusUpdate} disabled={!newStatus || updating}>
-              {updating ? 'Saving...' : 'Update'}
-            </Button>
-          </CardContent>
-        </Card>
+              </select>
+              <ChevronDown style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', width: '14px', height: '14px', color: V.textMuted, pointerEvents: 'none' }} />
+            </div>
+            <button
+              onClick={handleStatusUpdate}
+              disabled={!newStatus || updating}
+              style={{ padding: '9px 20px', borderRadius: '10px', border: 'none', background: V.warning, color: '#000', fontSize: '13px', fontWeight: 700, cursor: !newStatus || updating ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', opacity: !newStatus || updating ? 0.6 : 1 }}
+            >
+              {updating && <Loader2 style={{ width: '13px', height: '13px', animation: 'spin 1s linear infinite' }} />}
+              {updating ? 'Saving…' : 'Update Status'}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
 }
-
-type MaintenanceJob = {
-  id: string;
-  type: string;
-  status: string;
-  description: string | null;
-  odometerKm: number | null;
-  scheduledAt: string;
-  completedAt: string | null;
-  costCents: number;
-  vendor: string | null;
-  notes: string | null;
-  car: { make: string; model: string; year: number; registrationNumber: string } | null;
-};

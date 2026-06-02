@@ -100,7 +100,7 @@ export default function ActiveRentalsPage() {
       </motion.div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-[14px]">
         {[
           { label: 'Active', value: stats.total, icon: Car, color: V.primary, glow: 'rgba(77,162,255,0.12)' },
           { label: 'Overdue', value: stats.overdue, icon: AlertTriangle, color: stats.overdue > 0 ? V.danger : V.success, glow: stats.overdue > 0 ? 'rgba(255,90,111,0.12)' : 'rgba(0,194,122,0.10)' },

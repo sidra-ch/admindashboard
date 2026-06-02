@@ -1,4 +1,4 @@
-import { CarStatus, TransmissionType, FuelType, PlateState } from '@prisma/client';
+import { CarStatus, TransmissionType, FuelType, PlateState, CarCondition } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { IsBoolean, IsDateString, IsEnum, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
@@ -138,6 +138,19 @@ export class CreateCarDto {
   @IsOptional()
   @IsDateString()
   insuranceExpiry?: string;
+
+  @IsOptional()
+  @IsEnum(CarCondition)
+  condition?: CarCondition;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  purchasePrice?: number;
+
+  @IsOptional()
+  @IsDateString()
+  purchaseDate?: string;
 
   // Extra Features
   @IsOptional()

@@ -19,6 +19,12 @@ export class UsersController {
     return this.usersService.listForTenant(user.tenantId);
   }
 
+  @Get('roles')
+  @Permissions(PermissionCode.USER_READ)
+  async listRoles() {
+    return this.usersService.listRoles();
+  }
+
   @Post()
   @Permissions(PermissionCode.USER_WRITE)
   async create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateUserDto) {

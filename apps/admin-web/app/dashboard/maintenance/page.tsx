@@ -106,7 +106,7 @@ export default function MaintenancePage() {
       </motion.div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
         {[
           { label: 'Total', value: stats.total, icon: Wrench, color: V.warning, glow: 'rgba(255,181,71,0.12)' },
           { label: 'Scheduled', value: stats.scheduled, icon: Clock, color: V.primary, glow: 'rgba(77,162,255,0.12)' },

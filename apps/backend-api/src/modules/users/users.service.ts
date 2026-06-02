@@ -86,4 +86,11 @@ export class UsersService {
 
     return role.permissions.map((entry) => entry.permission.code as PermissionCode);
   }
+
+  async listRoles() {
+    return this.prisma.role.findMany({
+      orderBy: { name: 'asc' },
+      select: { id: true, code: true, name: true, description: true },
+    });
+  }
 }

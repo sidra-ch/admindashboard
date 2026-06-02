@@ -10,6 +10,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
 import { PaymentsService } from './payments.service';
 import { PdfService } from '../pdf/pdf.service';
+import { MailerService } from '../mailer/mailer.service';
 
 @Controller('payments')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -17,6 +18,7 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly pdfService: PdfService,
+    private readonly mailerService: MailerService,
   ) {}
 
   @Get()
@@ -51,5 +53,14 @@ export class PaymentsController {
       'Content-Length': pdf.length,
     });
     res.end(pdf);
+  }
+
+  @Post('invoices/:id/send-email')
+  @Permissions(PermissionCode.PAYMENT_WRITE)
+  async sendInvoiceEmail(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') invoiceId: string,
+  ) {
+    return this.paymentsService.sendInvoiceEmail(user, invoiceId, this.mailerService);
   }
 }

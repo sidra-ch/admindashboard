@@ -1,20 +1,29 @@
 ﻿'use client';
 
 import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '../../../../lib/api-client';
 import {
   Building2, Shield, Zap, CreditCard, Save, Upload,
   Globe, Phone, Mail, MapPin, Users, CheckCircle2,
-  Lock, Key, Bell, ChevronRight,
+  Lock, Key, Bell, ChevronRight, Plus, X, Trash2, Loader2, AlertTriangle, GitBranch,
 } from 'lucide-react';
 
-type TabKey = 'company' | 'security' | 'integrations' | 'billing';
+type TabKey = 'company' | 'branches' | 'security' | 'integrations' | 'billing';
 
 const TABS: { key: TabKey; label: string; icon: React.ElementType }[] = [
-  { key: 'company', label: 'Company Profile', icon: Building2 },
-  { key: 'security', label: 'Security', icon: Shield },
-  { key: 'integrations', label: 'Integrations', icon: Zap },
-  { key: 'billing', label: 'Billing & Plan', icon: CreditCard },
+  { key: 'company',      label: 'Company Profile', icon: Building2 },
+  { key: 'branches',     label: 'Branches',        icon: GitBranch },
+  { key: 'security',    label: 'Security',        icon: Shield },
+  { key: 'integrations', label: 'Integrations',    icon: Zap },
+  { key: 'billing',     label: 'Billing & Plan',  icon: CreditCard },
 ];
+
+type BranchItem = {
+  id: string; name: string; code: string;
+  address: string | null; city: string | null; state: string | null;
+  _count: { users: number; cars: number };
+};
 
 const INTEGRATIONS = [
   {
@@ -70,9 +79,99 @@ const PLAN_FEATURES = [
   'Custom webhooks & API',
 ];
 
+const V = {
+  border: 'rgba(255,255,255,0.08)', primary: '#4DA2FF',
+  success: '#00C27A', danger: '#FF5A6F',
+  text: '#F5F7FA', textSec: '#A8B3CF', textMuted: '#6E7A99',
+  surface: '#121A2F', card: '#18233D',
+};
+
+function AddBranchModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ name: '', code: '', address: '', city: '', state: '' });
+  const [error, setError] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: () => apiClient('/tenants/me/branches', { method: 'POST', body: JSON.stringify(form) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenant-me'] }); onClose(); },
+    onError: (e: Error) => setError(e.message || 'Failed to create branch'),
+  });
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }));
+
+  const inp: React.CSSProperties = {
+    background: '#0E1728', border: `1px solid ${V.border}`, color: V.text,
+    borderRadius: '10px', padding: '9px 13px', fontSize: '13px', width: '100%', outline: 'none',
+  };
+  const lbl: React.CSSProperties = {
+    fontSize: '10.5px', fontWeight: 700, textTransform: 'uppercase',
+    letterSpacing: '0.10em', color: V.textMuted, display: 'block', marginBottom: '5px',
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div style={{ background: V.surface, border: `1px solid ${V.border}`, borderRadius: '20px', padding: '28px', width: '100%', maxWidth: '460px', boxShadow: '0 32px 80px rgba(0,0,0,0.55)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '22px' }}>
+          <div>
+            <h3 style={{ color: V.text, fontSize: '16px', fontWeight: 700 }}>Add Branch</h3>
+            <p style={{ color: V.textMuted, fontSize: '12px', marginTop: '2px' }}>Create a new operational location</p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: V.textMuted }}><X style={{ width: '18px', height: '18px' }} /></button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+          <div style={{ gridColumn: 'span 1' }}><label style={lbl}>Branch Name</label><input style={inp} value={form.name} onChange={set('name')} placeholder="Sydney CBD" /></div>
+          <div><label style={lbl}>Branch Code</label><input style={inp} value={form.code} onChange={set('code')} placeholder="SYD" /></div>
+        </div>
+        <div style={{ marginTop: '14px' }}><label style={lbl}>Address (optional)</label><input style={inp} value={form.address} onChange={set('address')} placeholder="Level 1, 123 George St" /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginTop: '14px' }}>
+          <div><label style={lbl}>City</label><input style={inp} value={form.city} onChange={set('city')} placeholder="Sydney" /></div>
+          <div><label style={lbl}>State</label><input style={inp} value={form.state} onChange={set('state')} placeholder="NSW" /></div>
+        </div>
+
+        {error && (
+          <div style={{ marginTop: '14px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(255,90,111,0.10)', border: '1px solid rgba(255,90,111,0.22)', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <AlertTriangle style={{ width: '14px', height: '14px', color: V.danger, flexShrink: 0 }} />
+            <span style={{ color: V.danger, fontSize: '12px' }}>{error}</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '10px', marginTop: '22px' }}>
+          <button onClick={onClose} style={{ flex: 1, padding: '10px', borderRadius: '11px', border: `1px solid ${V.border}`, background: 'transparent', color: V.textSec, fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending || !form.name || !form.code}
+            style={{ flex: 1, padding: '10px', borderRadius: '11px', border: 'none', background: V.primary, color: '#fff', fontSize: '13px', fontWeight: 700, cursor: mutation.isPending ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', opacity: mutation.isPending ? 0.7 : 1 }}
+          >
+            {mutation.isPending && <Loader2 style={{ width: '14px', height: '14px', animation: 'spin 1s linear infinite' }} />}
+            {mutation.isPending ? 'Creating...' : 'Create Branch'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CompanySettingsPage() {
   const [tab, setTab] = useState<TabKey>('company');
   const [saved, setSaved] = useState(false);
+  const [showAddBranch, setShowAddBranch] = useState(false);
+  const qc = useQueryClient();
+
+  const tenantQuery = useQuery({
+    queryKey: ['tenant-me'],
+    queryFn: () => apiClient<{ name: string; branches: BranchItem[] }>('/tenants/me'),
+    enabled: tab === 'branches',
+  });
+
+  const deleteBranchMutation = useMutation({
+    mutationFn: (id: string) => apiClient(`/tenants/me/branches/${id}`, { method: 'DELETE' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-me'] }),
+  });
+
+  const branches = tenantQuery.data?.branches ?? [];
 
   const cardStyle: React.CSSProperties = {
     background: '#18233D',
@@ -343,6 +442,85 @@ export default function CompanySettingsPage() {
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Branches tab */}
+      {tab === 'branches' && (
+        <div className="space-y-4">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <p style={{ color: '#6E7A99', fontSize: '12px' }}>{branches.length} branch{branches.length !== 1 ? 'es' : ''} configured</p>
+            <button
+              onClick={() => setShowAddBranch(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '8px 16px', borderRadius: '11px', border: 'none', background: '#4DA2FF', color: '#fff', fontSize: '12px', fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 12px rgba(77,162,255,0.28)' }}
+            >
+              <Plus style={{ width: '14px', height: '14px' }} />
+              Add Branch
+            </button>
+          </div>
+
+          {tenantQuery.isLoading && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', gap: '12px' }}>
+              <Loader2 style={{ width: '20px', height: '20px', color: '#4DA2FF', animation: 'spin 1s linear infinite' }} />
+              <span style={{ color: '#6E7A99', fontSize: '13px' }}>Loading branches...</span>
+            </div>
+          )}
+
+          {!tenantQuery.isLoading && branches.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '60px 20px', background: '#18233D', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px' }}>
+              <GitBranch style={{ width: '32px', height: '32px', color: '#6E7A99', margin: '0 auto 10px' }} />
+              <p style={{ color: '#F5F7FA', fontWeight: 600, fontSize: '14px' }}>No branches yet</p>
+              <p style={{ color: '#6E7A99', fontSize: '12px', marginTop: '4px' }}>Add your first branch to organise your fleet operations</p>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+            {branches.map(branch => (
+              <div key={branch.id} style={{ ...cardStyle, padding: '18px', borderRadius: '16px', position: 'relative' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(77,162,255,0.12)', border: '1px solid rgba(77,162,255,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <GitBranch style={{ width: '16px', height: '16px', color: '#4DA2FF' }} />
+                    </div>
+                    <div>
+                      <p style={{ color: '#F5F7FA', fontSize: '14px', fontWeight: 700 }}>{branch.name}</p>
+                      <span style={{ padding: '1px 8px', borderRadius: '5px', background: 'rgba(77,162,255,0.10)', border: '1px solid rgba(77,162,255,0.18)', fontSize: '10px', fontWeight: 700, color: '#4DA2FF', fontFamily: 'monospace' }}>{branch.code}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete branch "${branch.name}"? This cannot be undone.`)) {
+                        deleteBranchMutation.mutate(branch.id);
+                      }
+                    }}
+                    disabled={deleteBranchMutation.isPending}
+                    style={{ padding: '6px', borderRadius: '8px', background: 'rgba(255,90,111,0.08)', border: '1px solid rgba(255,90,111,0.16)', color: '#FF5A6F', cursor: 'pointer', transition: 'all 0.12s' }}
+                  >
+                    <Trash2 style={{ width: '13px', height: '13px' }} />
+                  </button>
+                </div>
+
+                {(branch.city || branch.state || branch.address) && (
+                  <p style={{ color: '#6E7A99', fontSize: '12px', marginBottom: '12px' }}>
+                    {[branch.address, branch.city, branch.state].filter(Boolean).join(', ')}
+                  </p>
+                )}
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ flex: 1, padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                    <p style={{ color: '#F5F7FA', fontSize: '16px', fontWeight: 700 }}>{branch._count.users}</p>
+                    <p style={{ color: '#6E7A99', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Staff</p>
+                  </div>
+                  <div style={{ flex: 1, padding: '8px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                    <p style={{ color: '#F5F7FA', fontSize: '16px', fontWeight: 700 }}>{branch._count.cars}</p>
+                    <p style={{ color: '#6E7A99', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Vehicles</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {showAddBranch && <AddBranchModal onClose={() => setShowAddBranch(false)} />}
         </div>
       )}
 

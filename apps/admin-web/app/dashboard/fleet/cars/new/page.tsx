@@ -31,12 +31,12 @@ import { toast } from 'sonner';
 import { z } from 'zod';
 import { apiClient } from '../../../../../lib/api-client';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
+// --- Types ---------------------------------------------------------------------
 type Branch = { id: string; name: string };
 type CarCategory = { id: string; name: string };
 type PreviewImage = { id: string; url: string; file: File };
 
-// ─── Zod Schemas ───────────────────────────────────────────────────────────────
+// --- Zod Schemas ---------------------------------------------------------------
 // Empty string from HTML inputs must become undefined for optional fields
 const optNum = (min = 0) =>
   z.preprocess(
@@ -73,7 +73,7 @@ const fullSchema = step1Schema.merge(step2Schema);
 type FormValues = z.infer<typeof fullSchema>;
 const DRAFT_KEY = 'fleet-car-wizard-draft';
 
-// ─── Style Constants ────────────────────────────────────────────────────────────
+// --- Style Constants ------------------------------------------------------------
 const BG = 'oklch(0.082 0.018 265)';
 const CARD: React.CSSProperties = { background: 'oklch(0.132 0.020 265 / 0.80)', border: '1px solid oklch(0.248 0.020 265)', backdropFilter: 'blur(16px)', borderRadius: '16px' };
 const FIELD: React.CSSProperties = { background: 'oklch(0.10 0.018 265)', border: '1px solid oklch(0.248 0.020 265)', borderRadius: '10px', color: 'oklch(0.92 0.010 265)', padding: '0.625rem 0.875rem 0.625rem 2.5rem', width: '100%', fontSize: '0.875rem', outline: 'none' };
@@ -81,7 +81,7 @@ const SELECT: React.CSSProperties = { ...FIELD, paddingRight: '2.5rem', appearan
 const LABEL: React.CSSProperties = { fontSize: '0.7rem', fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase' as const, color: 'oklch(0.50 0.010 265)', marginBottom: '0.35rem', display: 'block' };
 const ERR: React.CSSProperties = { color: 'oklch(0.70 0.18 27)', fontSize: '0.72rem', marginTop: '0.25rem' };
 
-// ─── Static Data ───────────────────────────────────────────────────────────────
+// --- Static Data ---------------------------------------------------------------
 const TX_LABELS: Record<string, string> = { MANUAL: 'Manual', AUTOMATIC: 'Automatic' };
 const FUEL_LABELS: Record<string, string> = { PETROL: 'Petrol', DIESEL: 'Diesel', ELECTRIC: 'Electric', HYBRID: 'Hybrid', PLUGIN_HYBRID: 'Plug-in Hybrid' };
 const STATUS_CFG: Record<string, { label: string; color: string; bg: string }> = {
@@ -98,7 +98,7 @@ const COLOR_SWATCHES = [
   { label: 'Red', value: 'Red', hex: '#ef4444' },
 ];
 
-// ─── FieldWrap & SelectWrap ─────────────────────────────────────────────────────
+// --- FieldWrap & SelectWrap -----------------------------------------------------
 function FieldWrap({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ position: 'relative' }}>
@@ -117,7 +117,7 @@ function SelectWrap({ icon, children }: { icon: React.ReactNode; children: React
   );
 }
 
-// ─── StepIndicator ─────────────────────────────────────────────────────────────
+// --- StepIndicator -------------------------------------------------------------
 function StepIndicator({ current }: { current: number }) {
   const steps = [
     { n: 1, label: 'Basic Info', icon: <Car size={15} /> },
@@ -145,7 +145,7 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-// ─── VehiclePreviewCard ────────────────────────────────────────────────────────
+// --- VehiclePreviewCard --------------------------------------------------------
 function VehiclePreviewCard({ values, images, categories }: { values: Partial<FormValues>; images: PreviewImage[]; categories: CarCategory[] }) {
   const statusCfg = STATUS_CFG[values.status ?? 'AVAILABLE'] ?? STATUS_CFG.AVAILABLE;
   const catName = categories.find((c) => c.id === values.categoryId)?.name;
@@ -187,9 +187,9 @@ function VehiclePreviewCard({ values, images, categories }: { values: Partial<Fo
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', borderTop: '1px solid oklch(0.248 0.020 265)', paddingTop: '0.85rem' }}>
             {[
-              { label: 'Daily', value: values.dailyRateCents ? `$${(values.dailyRateCents / 100).toFixed(0)}` : '—' },
-              { label: 'Weekly', value: values.weeklyRateCents ? `$${(values.weeklyRateCents / 100).toFixed(0)}` : '—' },
-              { label: 'Monthly', value: values.monthlyRateCents ? `$${(values.monthlyRateCents / 100).toFixed(0)}` : '—' },
+              { label: 'Daily', value: values.dailyRateCents ? `$${(values.dailyRateCents / 100).toFixed(0)}` : '�' },
+              { label: 'Weekly', value: values.weeklyRateCents ? `$${(values.weeklyRateCents / 100).toFixed(0)}` : '�' },
+              { label: 'Monthly', value: values.monthlyRateCents ? `$${(values.monthlyRateCents / 100).toFixed(0)}` : '�' },
             ].map((p) => (
               <div key={p.label} style={{ textAlign: 'center' }}>
                 <p style={{ fontSize: '0.58rem', color: 'oklch(0.40 0.008 265)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 0.15rem' }}>{p.label}</p>
@@ -199,12 +199,12 @@ function VehiclePreviewCard({ values, images, categories }: { values: Partial<Fo
           </div>
         </div>
       </div>
-      <p style={{ fontSize: '0.68rem', color: 'oklch(0.35 0.008 265)', textAlign: 'center', marginTop: '0.65rem' }}>💾 Draft auto-saved</p>
+      <p style={{ fontSize: '0.68rem', color: 'oklch(0.35 0.008 265)', textAlign: 'center', marginTop: '0.65rem' }}>?? Draft auto-saved</p>
     </div>
   );
 }
 
-// ─── ImageDropzone ─────────────────────────────────────────────────────────────
+// --- ImageDropzone -------------------------------------------------------------
 function ImageDropzone({ images, onAdd, onRemove }: { images: PreviewImage[]; onAdd: (f: File[]) => void; onRemove: (id: string) => void }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -217,10 +217,10 @@ function ImageDropzone({ images, onAdd, onRemove }: { images: PreviewImage[]; on
           <Upload size={22} style={{ color: 'oklch(0.688 0.196 256)' }} />
         </div>
         <p style={{ color: 'oklch(0.70 0.010 265)', fontSize: '0.9rem', fontWeight: 600, margin: '0 0 0.35rem' }}>Drag & drop vehicle photos</p>
-        <p style={{ color: 'oklch(0.40 0.008 265)', fontSize: '0.78rem', margin: 0 }}>or click to browse · JPG, PNG, WEBP</p>
+        <p style={{ color: 'oklch(0.40 0.008 265)', fontSize: '0.78rem', margin: 0 }}>or click to browse � JPG, PNG, WEBP</p>
         <input ref={inputRef} type="file" multiple accept="image/*" style={{ display: 'none' }} onChange={handleFileInput} />
       </div>
-      <p style={{ color: 'oklch(0.40 0.008 265)', fontSize: '0.75rem', textAlign: 'center', marginTop: '0.75rem' }}>✦ Optional — upload now or from the vehicle detail page later</p>
+      <p style={{ color: 'oklch(0.40 0.008 265)', fontSize: '0.75rem', textAlign: 'center', marginTop: '0.75rem' }}>? Optional � upload now or from the vehicle detail page later</p>
       {images.length > 0 && (
         <div style={{ marginTop: '1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '0.65rem' }}>
           {images.map((img, i) => (
@@ -238,7 +238,7 @@ function ImageDropzone({ images, onAdd, onRemove }: { images: PreviewImage[]; on
   );
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// --- Main Page -----------------------------------------------------------------
 export default function NewCarPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -328,17 +328,17 @@ export default function NewCarPage() {
       <StepIndicator current={step} />
 
       <form onSubmit={onSubmit}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 300px', gap: '1.5rem', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '1.5rem', alignItems: 'start' }} className="lg:!grid-cols-[minmax(0,1fr)_300px]">
           {/* Left: Steps */}
           <div>
             {/* STEP 1 */}
             {step === 1 && (
               <div style={{ ...CARD, padding: '1.75rem' }}>
                 {sectionTitle('Vehicle Identity')}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={LABEL}>Branch *</label>
-                    <SelectWrap icon={<MapPin size={15} />}><select style={SELECT} {...register('branchId')}><option value="">{tenantQuery.isLoading ? 'Loading…' : 'Select branch'}</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></SelectWrap>
+                    <SelectWrap icon={<MapPin size={15} />}><select style={SELECT} {...register('branchId')}><option value="">{tenantQuery.isLoading ? 'Loading�' : 'Select branch'}</option>{branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></SelectWrap>
                     {errors.branchId && <p style={ERR}>{errors.branchId.message}</p>}
                   </div>
                   <div>
@@ -363,11 +363,11 @@ export default function NewCarPage() {
                   </div>
                   <div>
                     <label style={LABEL}>Vehicle Type</label>
-                    <SelectWrap icon={<Layers size={15} />}><select style={SELECT} {...register('categoryId')}><option value="">{categoriesQuery.isLoading ? 'Loading…' : 'Select type'}</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></SelectWrap>
+                    <SelectWrap icon={<Layers size={15} />}><select style={SELECT} {...register('categoryId')}><option value="">{categoriesQuery.isLoading ? 'Loading�' : 'Select type'}</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></SelectWrap>
                   </div>
                   <div>
                     <label style={LABEL}>Seats</label>
-                    <FieldWrap icon={<span style={{ fontSize: '0.75rem' }}>👤</span>}><input style={FIELD} type="number" min={1} max={12} placeholder="5" {...register('seats')} /></FieldWrap>
+                    <FieldWrap icon={<span style={{ fontSize: '0.75rem' }}>??</span>}><input style={FIELD} type="number" min={1} max={12} placeholder="5" {...register('seats')} /></FieldWrap>
                   </div>
                   <div>
                     <label style={LABEL}>Transmission</label>
@@ -400,7 +400,7 @@ export default function NewCarPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div style={{ ...CARD, padding: '1.75rem' }}>
                   {sectionTitle('Pricing')}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
                     <div>
                       <label style={LABEL}>Daily Rate (cents) *</label>
                       <FieldWrap icon={<DollarSign size={15} />}><input style={FIELD} type="number" placeholder="15000" {...register('dailyRateCents')} /></FieldWrap>
@@ -426,7 +426,7 @@ export default function NewCarPage() {
                 </div>
                 <div style={{ ...CARD, padding: '1.75rem' }}>
                   {sectionTitle('Operational Details')}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
                     <div>
                       <label style={LABEL}>Odometer (km)</label>
                       <FieldWrap icon={<Gauge size={15} />}><input style={FIELD} type="number" placeholder="0" {...register('odometerKm')} /></FieldWrap>
@@ -468,7 +468,7 @@ export default function NewCarPage() {
                   </button>
                 ) : (
                   <button type="submit" disabled={submitting} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.75rem 1.75rem', borderRadius: '10px', border: 'none', background: submitting ? 'oklch(0.40 0.08 256)' : 'linear-gradient(135deg, oklch(0.688 0.196 256), oklch(0.60 0.22 270))', color: 'white', cursor: submitting ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.875rem' }}>
-                    {submitting ? (<><span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />Adding…</>) : (<><Check size={16} />Add to Fleet</>)}
+                    {submitting ? (<><span style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', display: 'inline-block', animation: 'spin 0.8s linear infinite' }} />Adding�</>) : (<><Check size={16} />Add to Fleet</>)}
                   </button>
                 )}
               </div>

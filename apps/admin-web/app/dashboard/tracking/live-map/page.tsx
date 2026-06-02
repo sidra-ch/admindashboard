@@ -159,7 +159,7 @@ export default function LiveMapPage() {
       </motion.div>
 
       {/* Map + List */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '20px', alignItems: 'start' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-5" style={{ alignItems: 'start' }}>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 }} style={{ background: V.card, border: `1px solid ${V.border}`, borderRadius: '18px', overflow: 'hidden' }}>
           <div style={{ padding: '18px 20px', borderBottom: `1px solid ${V.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

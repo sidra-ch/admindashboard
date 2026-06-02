@@ -88,7 +88,7 @@ export default function RevenuePage() {
       </motion.div>
 
       {isLoading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '14px' }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-[14px]">
           {Array.from({ length: 6 }).map((_, i) => <div key={i} style={{ ...card({ height: '110px' }) }} className="shimmer-card" />)}
         </div>
       ) : !rev ? null : (
@@ -118,7 +118,7 @@ export default function RevenuePage() {
           </div>
 
           {/* Charts row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: '14px' }}>
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_340px] gap-[14px]">
             {/* Bar chart: by method */}
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} style={card({ padding: '24px' })}>
               <p style={{ color: V.text, fontSize: '15px', fontWeight: 700, marginBottom: '4px' }}>Revenue by Method</p>

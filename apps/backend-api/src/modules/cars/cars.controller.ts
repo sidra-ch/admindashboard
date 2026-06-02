@@ -12,6 +12,7 @@ import { ListCarsQueryDto } from './dto/list-cars-query.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { CheckAvailabilityDto } from './dto/check-availability.dto';
 import { GetCalendarDto } from './dto/get-calendar.dto';
+import { BulkImportCarsDto } from './dto/bulk-import-cars.dto';
 
 @Controller('cars')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -34,6 +35,12 @@ export class CarsController {
   @Permissions(PermissionCode.CAR_WRITE)
   async create(@CurrentUser() user: AuthenticatedUser, @Body() dto: CreateCarDto) {
     return this.carsService.create(user, dto);
+  }
+
+  @Post('bulk-import')
+  @Permissions(PermissionCode.CAR_WRITE)
+  async bulkImport(@CurrentUser() user: AuthenticatedUser, @Body() dto: BulkImportCarsDto) {
+    return this.carsService.bulkImport(user, dto);
   }
 
   @Patch(':id')

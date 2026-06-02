@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { apiClient, getApiUrl } from '../../../lib/api-client';
 import { getStoredSession } from '../../../lib/auth-storage';
 import { formatCurrency, formatDateTime } from '../../../lib/formatters';
@@ -10,7 +10,7 @@ import { Input } from '../../../components/ui/input';
 import {
   CreditCard, Search, Download, DollarSign, TrendingUp,
   Clock, XCircle, CheckCircle2, BarChart3, Banknote,
-  Receipt, ArrowUpRight,
+  Receipt, ArrowUpRight, Mail, Loader2,
 } from 'lucide-react';
 
 type PaymentItem = {
@@ -57,7 +57,12 @@ function downloadInvoicePdf(invoiceId: string, token: string | undefined) {
     });
 }
 
-function PaymentRow({ payment, token }: { payment: PaymentItem; token: string | undefined }) {
+function PaymentRow({ payment, token, onSendEmail, sendingEmail }: {
+  payment: PaymentItem;
+  token: string | undefined;
+  onSendEmail?: (invoiceId: string) => void;
+  sendingEmail?: boolean;
+}) {
   const cfg = getCfg(payment.status);
   const Icon = cfg.icon;
   const methodIcon = METHOD_ICONS[payment.method] ?? '💳';
@@ -121,18 +126,34 @@ function PaymentRow({ payment, token }: { payment: PaymentItem; token: string | 
         </span>
       </div>
 
-      {/* Download */}
+      {/* Download PDF + Send Email */}
       {payment.invoiceId && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 rounded-xl"
-          title="Download Invoice PDF"
-          onClick={() => downloadInvoicePdf(payment.invoiceId!, token)}
-          style={{ color: 'oklch(0.50 0.010 265)' }}
-        >
-          <Download className="size-3.5" />
-        </Button>
+        <div style={{ display: 'flex', gap: '4px' }}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-xl"
+            title="Download Invoice PDF"
+            onClick={() => downloadInvoicePdf(payment.invoiceId!, token)}
+            style={{ color: 'oklch(0.50 0.010 265)' }}
+          >
+            <Download className="size-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-xl"
+            title="Send Invoice Email"
+            onClick={() => onSendEmail?.(payment.invoiceId!)}
+            disabled={sendingEmail}
+            style={{ color: 'oklch(0.50 0.010 265)' }}
+          >
+            {sendingEmail
+              ? <Loader2 className="size-3.5 animate-spin" />
+              : <Mail className="size-3.5" />
+            }
+          </Button>
+        </div>
       )}
     </div>
   );
@@ -142,6 +163,19 @@ export default function PaymentsPage() {
   const session = getStoredSession();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
+  const [sentInvoiceIds, setSentInvoiceIds] = useState<Set<string>>(new Set());
+
+  const sendEmailMutation = useMutation({
+    mutationFn: (invoiceId: string) =>
+      apiClient<{ sent: boolean; toEmail: string }>(`/payments/invoices/${invoiceId}/send-email`, { method: 'POST' }),
+    onMutate: (invoiceId) => setSendingInvoiceId(invoiceId),
+    onSuccess: (_, invoiceId) => {
+      setSentInvoiceIds(prev => new Set(prev).add(invoiceId));
+      setSendingInvoiceId(null);
+    },
+    onError: () => setSendingInvoiceId(null),
+  });
 
   const paymentsQuery = useQuery({
     queryKey: ['payments'],
@@ -312,7 +346,13 @@ export default function PaymentsPage() {
           </div>
           <div className="divide-y" style={{ borderColor: 'oklch(0.180 0.018 265)' }}>
             {filtered.map(payment => (
-              <PaymentRow key={payment.id} payment={payment} token={session?.accessToken} />
+              <PaymentRow
+                key={payment.id}
+                payment={payment}
+                token={session?.accessToken}
+                onSendEmail={(invoiceId) => sendEmailMutation.mutate(invoiceId)}
+                sendingEmail={sendingInvoiceId === payment.invoiceId}
+              />
             ))}
           </div>
         </div>

@@ -34,7 +34,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<LoginValues>({ resolver: zodResolver(loginSchema) });
 
   const onSubmit = async (values: LoginValues) => {
     setIsLoading(true);
@@ -66,7 +66,7 @@ export function LoginForm() {
         <label style={{ color: V.textSec, fontSize: '12px', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Email Address</label>
         <div style={{ position: 'relative' }}>
           <Mail style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', width: '15px', height: '15px', color: V.textMuted, pointerEvents: 'none' }} />
-          <input {...register('email')} type="email" placeholder="admin@company.com" autoComplete="email" style={inp(!!errors.email)} />
+          <input {...register('email')} type="email" placeholder="admin@fleetrentpro.com" autoComplete="email" style={inp(!!errors.email)} />
         </div>
         {errors.email && <p style={{ color: V.danger, fontSize: '11.5px', marginTop: '5px' }}>{errors.email.message}</p>}
       </div>
@@ -87,9 +87,19 @@ export function LoginForm() {
       <button type="submit" disabled={isLoading} style={{ width: '100%', padding: '13px', borderRadius: '12px', background: isLoading ? 'rgba(77,162,255,0.50)' : 'linear-gradient(135deg, #4DA2FF, #00D1FF)', border: 'none', color: 'white', fontWeight: 700, fontSize: '14px', cursor: isLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: isLoading ? 'none' : '0 6px 24px rgba(77,162,255,0.35)', transition: 'all 0.2s ease', marginTop: '4px' }}>
         {isLoading ? 'Authenticating...' : <><span>Sign In to Velocity Fleet OS</span><ArrowRight style={{ width: '15px', height: '15px' }} /></>}
       </button>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px 14px', borderRadius: '11px', background: 'rgba(77,162,255,0.07)', border: '1px solid rgba(77,162,255,0.15)' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', padding: '12px 14px', borderRadius: '11px', background: 'rgba(77,162,255,0.07)', border: '1px solid rgba(77,162,255,0.15)', cursor: 'pointer' }}
+        onClick={() => {
+          setValue('email', DEV_EMAIL);
+          setValue('password', DEV_PASSWORD);
+        }}
+      >
         <Shield style={{ width: '14px', height: '14px', color: V.primary, flexShrink: 0, marginTop: '1px' }} />
-        <p style={{ color: V.textSec, fontSize: '11.5px', lineHeight: 1.5 }}>Demo: <span style={{ color: V.primary, fontWeight: 600 }}>admin@fleetrentpro.com</span> · <span style={{ color: V.primary, fontWeight: 600 }}>Admin@12345</span></p>
+        <div style={{ flex: 1 }}>
+          <p style={{ color: V.textSec, fontSize: '11.5px', lineHeight: 1.5, margin: 0 }}>
+            Demo: <span style={{ color: V.primary, fontWeight: 600 }}>admin@fleetrentpro.com</span> · <span style={{ color: V.primary, fontWeight: 600 }}>Admin@12345</span>
+          </p>
+          <p style={{ color: V.primary, fontSize: '11px', fontWeight: 600, margin: '2px 0 0' }}>Click to auto-fill →</p>
+        </div>
       </div>
     </motion.form>
   );

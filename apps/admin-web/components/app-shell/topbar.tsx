@@ -1,10 +1,12 @@
 ﻿'use client';
 
-import { Bell, Search, Menu, Command, X, ArrowRight, Clock, TrendingUp, Car, Users } from 'lucide-react';
+import { Bell, Search, Menu, Command, ArrowRight, Clock, Car, Users, Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { clearStoredSession, getStoredSession, type StoredSession } from '../../lib/auth-storage';
+import { apiClient } from '../../lib/api-client';
 import { sidebarSections } from '../../lib/nav';
 
 const V = {
@@ -30,13 +32,19 @@ function toTitleCase(s: string) {
   return s.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
-// Quick actions for command palette
-const QUICK_ACTIONS = [
-  { label: 'Add New Vehicle', icon: Car, href: '/dashboard/fleet/cars/new', category: 'Fleet' },
-  { label: 'View Active Rentals', icon: TrendingUp, href: '/dashboard/rentals/active', category: 'Rentals' },
-  { label: 'Customer Search', icon: Users, href: '/dashboard/customers', category: 'CRM' },
-  { label: 'Revenue Analytics', icon: TrendingUp, href: '/dashboard/payments/revenue', category: 'Finance' },
-];
+// Types for search results
+type CustomerItem = { id: string; firstName: string; lastName: string; phone: string; email: string };
+type CarItem = { id: string; brand: string; model: string; year: number; registrationNumber: string; status: string };
+type SearchResult = { id: string; label: string; sub: string; href: string; category: string; icon: React.ElementType };
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const router = useRouter();
@@ -45,9 +53,31 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const [now, setNow] = useState<Date | null>(null);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const cmdInputRef = useRef<HTMLInputElement>(null);
+
+  const debouncedQuery = useDebounce(cmdQuery, 280);
+
+  // Live search queries — only fire when palette is open and query has 2+ chars
+  const searchEnabled = cmdOpen && debouncedQuery.length >= 2;
+
+  const customersQuery = useQuery({
+    queryKey: ['cmd-customers', debouncedQuery],
+    queryFn: () => apiClient<{ items: CustomerItem[] }>(`/customers?search=${encodeURIComponent(debouncedQuery)}&page=1&pageSize=5`),
+    enabled: searchEnabled,
+    staleTime: 10_000,
+  });
+
+  const carsQuery = useQuery({
+    queryKey: ['cmd-cars', debouncedQuery],
+    queryFn: () => apiClient<{ items: CarItem[] }>(`/fleet/cars?search=${encodeURIComponent(debouncedQuery)}&page=1&pageSize=5`),
+    enabled: searchEnabled,
+    staleTime: 10_000,
+  });
+
+  const isSearching = searchEnabled && (customersQuery.isFetching || carsQuery.isFetching);
 
   useEffect(() => { setSession(getStoredSession()); }, []);
   useEffect(() => {
@@ -63,6 +93,7 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
         e.preventDefault();
         setCmdOpen(prev => !prev);
         setCmdQuery('');
+        setSelectedIndex(0);
       }
       if (e.key === 'Escape') {
         setCmdOpen(false);
@@ -78,6 +109,45 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
     if (cmdOpen) setTimeout(() => cmdInputRef.current?.focus(), 50);
   }, [cmdOpen]);
 
+  // Build unified result list
+  const allNavRoutes = sidebarSections.flatMap(s => s.items.map(i => ({ title: i.title, href: i.href, category: s.title })));
+  const filteredNavRoutes = cmdQuery
+    ? allNavRoutes.filter(r => r.title.toLowerCase().includes(cmdQuery.toLowerCase()) || r.category.toLowerCase().includes(cmdQuery.toLowerCase()))
+    : allNavRoutes.slice(0, 5);
+
+  const customerResults: SearchResult[] = (customersQuery.data?.items ?? []).map(c => ({
+    id: c.id,
+    label: `${c.firstName} ${c.lastName}`,
+    sub: c.phone || c.email,
+    href: `/dashboard/customers/${c.id}`,
+    category: 'Customer',
+    icon: Users,
+  }));
+
+  const carResults: SearchResult[] = (carsQuery.data?.items ?? []).map(c => ({
+    id: c.id,
+    label: `${c.brand} ${c.model} ${c.year}`,
+    sub: c.registrationNumber,
+    href: `/dashboard/fleet/cars`,
+    category: 'Vehicle',
+    icon: Car,
+  }));
+
+  const flatResults: SearchResult[] = [
+    ...filteredNavRoutes.map(r => ({ id: r.href, label: r.title, sub: r.category, href: r.href, category: 'Navigate', icon: ArrowRight })),
+    ...customerResults,
+    ...carResults,
+  ];
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, flatResults.length - 1)); }
+    if (e.key === 'ArrowUp')   { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, 0)); }
+    if (e.key === 'Enter' && flatResults[selectedIndex]) {
+      router.push(flatResults[selectedIndex].href);
+      setCmdOpen(false);
+    }
+  };
+
   const navItems = sidebarSections.flatMap(s => s.items.map(i => ({ title: i.title, href: i.href })));
   const currentNavItem = navItems.find(i => routeMatches(pathname, i.href));
   const currentSection = sidebarSections.find(s => s.items.some(i => routeMatches(pathname, i.href)));
@@ -85,18 +155,10 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const sectionTitle = currentSection?.title ?? 'Operations';
   const displayName = session?.user.email?.split('@')[0]?.replace(/[._-]/g, ' ') ?? 'Fleet Admin';
   const initials = displayName.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
-
   const currentDate = now ? new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }).format(now) : '';
   const currentTime = now ? new Intl.DateTimeFormat('en-AU', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(now) : '';
 
-  // Command palette filtered results
-  const allRoutes = sidebarSections.flatMap(s => s.items.map(i => ({ title: i.title, href: i.href, category: s.title })));
-  const filteredRoutes = cmdQuery
-    ? allRoutes.filter(r => r.title.toLowerCase().includes(cmdQuery.toLowerCase()) || r.category.toLowerCase().includes(cmdQuery.toLowerCase()))
-    : allRoutes.slice(0, 6);
-
   const notifs = [
-    { icon: '🔴', text: 'Insurance expiring in 2 days — Toyota Camry ABC-123', tag: 'Urgent', color: V.danger, time: '2m ago' },
     { icon: '⚠️', text: '2 rentals overdue in Sydney CBD branch', tag: 'Warning', color: V.warning, time: '8m ago' },
     { icon: '💳', text: 'Pending payments exceed $45,000 threshold', tag: 'Finance', color: V.primary, time: '15m ago' },
     { icon: '🔧', text: 'Scheduled maintenance due: Ford Ranger XYZ-456', tag: 'Maintenance', color: V.secondary, time: '1h ago' },
@@ -282,53 +344,122 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             >
               {/* Search input */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 20px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                <Search style={{ width: '18px', height: '18px', color: V.primary, flexShrink: 0 }} />
+                {isSearching
+                  ? <Loader2 style={{ width: '18px', height: '18px', color: V.primary, flexShrink: 0, animation: 'spin 1s linear infinite' }} />
+                  : <Search style={{ width: '18px', height: '18px', color: V.primary, flexShrink: 0 }} />
+                }
                 <input
                   ref={cmdInputRef}
                   value={cmdQuery}
-                  onChange={e => setCmdQuery(e.target.value)}
-                  placeholder="Search fleet, navigate, or run actions..."
+                  onChange={e => { setCmdQuery(e.target.value); setSelectedIndex(0); }}
+                  placeholder="Search customers, vehicles, or navigate..."
                   style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: V.text, fontSize: '15px', fontWeight: 400 }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter' && filteredRoutes[0]) {
-                      router.push(filteredRoutes[0].href);
-                      setCmdOpen(false);
-                    }
-                  }}
+                  onKeyDown={handleKeyDown}
                 />
                 <kbd style={{ padding: '3px 8px', borderRadius: '6px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', fontSize: '11px', color: V.textMuted, cursor: 'pointer' }} onClick={() => setCmdOpen(false)}>ESC</kbd>
               </div>
 
               {/* Results */}
-              <div style={{ maxHeight: '400px', overflowY: 'auto', padding: '8px' }}>
-                {!cmdQuery && (
-                  <p style={{ color: V.textMuted, fontSize: '10.5px', fontWeight: 600, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '8px 12px 4px' }}>Quick Navigation</p>
+              <div style={{ maxHeight: '420px', overflowY: 'auto', padding: '8px' }}>
+                {/* Section: Navigation */}
+                {filteredNavRoutes.length > 0 && (
+                  <>
+                    <p style={{ color: V.textMuted, fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '8px 12px 4px' }}>
+                      {cmdQuery ? 'Pages' : 'Quick Navigation'}
+                    </p>
+                    {filteredNavRoutes.map((route, i) => {
+                      const globalIdx = i;
+                      const isSelected = selectedIndex === globalIdx;
+                      return (
+                        <button
+                          key={route.href}
+                          onClick={() => { router.push(route.href); setCmdOpen(false); }}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '11px', background: isSelected ? 'rgba(77,162,255,0.10)' : 'transparent', border: isSelected ? '1px solid rgba(77,162,255,0.20)' : '1px solid transparent', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s' }}
+                        >
+                          <span style={{ padding: '4px 8px', borderRadius: '7px', background: 'rgba(77,162,255,0.10)', border: '1px solid rgba(77,162,255,0.18)', fontSize: '10px', color: V.primary, fontWeight: 600, flexShrink: 0, minWidth: '72px', textAlign: 'center' }}>
+                            {route.category}
+                          </span>
+                          <span style={{ color: V.text, fontSize: '13px', fontWeight: 500, flex: 1 }}>{route.title}</span>
+                          <ArrowRight style={{ width: '13px', height: '13px', color: V.textMuted, flexShrink: 0 }} />
+                        </button>
+                      );
+                    })}
+                  </>
                 )}
-                {filteredRoutes.map((route, i) => (
-                  <button
-                    key={route.href}
-                    onClick={() => { router.push(route.href); setCmdOpen(false); }}
-                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '11px', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
-                    className="hover:bg-white/5"
-                  >
-                    <span style={{ padding: '6px 8px', borderRadius: '8px', background: 'rgba(77,162,255,0.10)', border: '1px solid rgba(77,162,255,0.18)', fontSize: '10px', color: V.primary, fontWeight: 600, flexShrink: 0, minWidth: '80px', textAlign: 'center' }}>
-                      {route.category}
-                    </span>
-                    <span style={{ color: V.text, fontSize: '13px', fontWeight: 500, flex: 1 }}>{route.title}</span>
-                    <ArrowRight style={{ width: '14px', height: '14px', color: V.textMuted, flexShrink: 0 }} />
-                  </button>
-                ))}
-                {filteredRoutes.length === 0 && (
-                  <div style={{ textAlign: 'center', padding: '32px', color: V.textMuted, fontSize: '13px' }}>
-                    No results for &quot;{cmdQuery}&quot;
+
+                {/* Section: Customers (live) */}
+                {customerResults.length > 0 && (
+                  <>
+                    <p style={{ color: V.textMuted, fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '10px 12px 4px' }}>Customers</p>
+                    {customerResults.map((r, i) => {
+                      const globalIdx = filteredNavRoutes.length + i;
+                      const isSelected = selectedIndex === globalIdx;
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => { router.push(r.href); setCmdOpen(false); }}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '11px', background: isSelected ? 'rgba(0,194,122,0.09)' : 'transparent', border: isSelected ? '1px solid rgba(0,194,122,0.22)' : '1px solid transparent', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s' }}
+                        >
+                          <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(0,194,122,0.12)', border: '1px solid rgba(0,194,122,0.22)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Users style={{ width: '14px', height: '14px', color: V.success }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ color: V.text, fontSize: '13px', fontWeight: 600 }}>{r.label}</p>
+                            <p style={{ color: V.textMuted, fontSize: '11px' }}>{r.sub}</p>
+                          </div>
+                          <ArrowRight style={{ width: '13px', height: '13px', color: V.textMuted, flexShrink: 0 }} />
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Section: Vehicles (live) */}
+                {carResults.length > 0 && (
+                  <>
+                    <p style={{ color: V.textMuted, fontSize: '10px', fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', padding: '10px 12px 4px' }}>Vehicles</p>
+                    {carResults.map((r, i) => {
+                      const globalIdx = filteredNavRoutes.length + customerResults.length + i;
+                      const isSelected = selectedIndex === globalIdx;
+                      return (
+                        <button
+                          key={r.id}
+                          onClick={() => { router.push(r.href); setCmdOpen(false); }}
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '11px', background: isSelected ? 'rgba(77,162,255,0.09)' : 'transparent', border: isSelected ? '1px solid rgba(77,162,255,0.20)' : '1px solid transparent', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s' }}
+                        >
+                          <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(77,162,255,0.10)', border: '1px solid rgba(77,162,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <Car style={{ width: '14px', height: '14px', color: V.primary }} />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <p style={{ color: V.text, fontSize: '13px', fontWeight: 600 }}>{r.label}</p>
+                            <p style={{ color: V.textMuted, fontSize: '11px', fontFamily: 'monospace' }}>{r.sub}</p>
+                          </div>
+                          <ArrowRight style={{ width: '13px', height: '13px', color: V.textMuted, flexShrink: 0 }} />
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+
+                {/* Empty state */}
+                {flatResults.length === 0 && !isSearching && cmdQuery.length >= 2 && (
+                  <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                    <Search style={{ width: '28px', height: '28px', color: V.textMuted, margin: '0 auto 10px' }} />
+                    <p style={{ color: V.textSec, fontSize: '13px', fontWeight: 600 }}>No results for &quot;{cmdQuery}&quot;</p>
+                    <p style={{ color: V.textMuted, fontSize: '12px', marginTop: '4px' }}>Try searching by name, plate, or phone number</p>
                   </div>
+                )}
+
+                {/* Hint when query is 1 char */}
+                {cmdQuery.length === 1 && (
+                  <p style={{ textAlign: 'center', padding: '20px', color: V.textMuted, fontSize: '12px' }}>Type at least 2 characters to search customers &amp; vehicles</p>
                 )}
               </div>
 
               {/* Footer */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-                <span style={{ color: V.textMuted, fontSize: '11px' }}>⌘K to toggle · Enter to navigate</span>
-                <span style={{ color: V.textMuted, fontSize: '11px' }}>{filteredRoutes.length} results</span>
+                <span style={{ color: V.textMuted, fontSize: '11px' }}>↑↓ navigate · Enter to open · Esc to close</span>
+                <span style={{ color: V.textMuted, fontSize: '11px' }}>{flatResults.length} results</span>
               </div>
             </motion.div>
           </motion.div>

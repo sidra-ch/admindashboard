@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { AuditActionType, BookingStatus, CarStatus, InvoiceStatus, PaymentStatus, RentalStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { MailerService } from '../mailer/mailer.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { ExtendRentalDto } from './dto/extend-rental.dto';
 import { ListRentalsQueryDto } from './dto/list-rentals-query.dto';
@@ -13,6 +14,7 @@ export class RentalsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly mailer: MailerService,
   ) {}
 
   async listActive(tenantId: string, query: ListRentalsQueryDto) {
@@ -152,7 +154,25 @@ export class RentalsService {
       metadata: { carId: dto.carId, customerId: dto.customerId },
     });
 
-    return this.getById(actor.tenantId, rental.id);
+    const full = await this.getById(actor.tenantId, rental.id);
+
+    // Send rental confirmation email (non-blocking)
+    if (full.customer?.email) {
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: actor.tenantId }, select: { name: true } });
+      this.mailer.sendRentalConfirmation({
+        toEmail: full.customer.email,
+        customerName: `${full.customer.firstName} ${full.customer.lastName}`,
+        invoiceNumber: full.invoice?.invoiceNumber ?? rental.id,
+        carName: `${full.car.brand} ${full.car.model}`,
+        registrationNumber: full.car.registrationNumber,
+        pickupAt: full.pickupAt,
+        expectedReturnAt: full.expectedReturnAt,
+        totalAmountCents: full.totalAmountCents,
+        tenantName: tenant?.name ?? 'FleetRent Pro',
+      });
+    }
+
+    return full;
   }
 
   async extendRental(actor: AuthenticatedUser, id: string, dto: ExtendRentalDto) {
@@ -253,7 +273,23 @@ export class RentalsService {
       metadata: { endOdometerKm: dto.endOdometerKm },
     });
 
-    return this.getById(actor.tenantId, id);
+    const returned = await this.getById(actor.tenantId, id);
+
+    // Send invoice email with PDF attachment (non-blocking)
+    if (returned.customer?.email && returned.invoice) {
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: actor.tenantId }, select: { name: true } });
+      this.mailer.sendInvoiceEmail({
+        toEmail: returned.customer.email,
+        customerName: `${returned.customer.firstName} ${returned.customer.lastName}`,
+        invoiceId: returned.invoice.id,
+        invoiceNumber: returned.invoice.invoiceNumber,
+        tenantId: actor.tenantId,
+        totalAmountCents: returned.invoice.totalCents,
+        tenantName: tenant?.name ?? 'FleetRent Pro',
+      });
+    }
+
+    return returned;
   }
 
   private async nextInvoiceNumber(tenantId: string) {

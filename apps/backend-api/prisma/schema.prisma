@@ -80,6 +80,14 @@ enum CarStatus {
   DISABLED
 }
 
+enum CarCondition {
+  NEW
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+}
+
 enum TransmissionType {
   MANUAL
   AUTOMATIC
@@ -339,6 +347,9 @@ model Car {
   lastServiceDate      DateTime?
   lastServiceKm        Int?
   insuranceExpiry      DateTime?
+  condition            CarCondition?
+  purchasePrice        Int?              // in cents
+  purchaseDate         DateTime?
   
   // Extra Features
   trackerInstalled     Boolean           @default(false)

@@ -8,6 +8,7 @@ import { ListCarsQueryDto } from './dto/list-cars-query.dto';
 import { UpdateCarDto } from './dto/update-car.dto';
 import { CheckAvailabilityDto } from './dto/check-availability.dto';
 import { GetCalendarDto } from './dto/get-calendar.dto';
+import { BulkImportCarsDto } from './dto/bulk-import-cars.dto';
 
 @Injectable()
 export class CarsService {
@@ -139,6 +140,7 @@ export class CarsService {
         nextServiceDue: dto.nextServiceDue ? new Date(dto.nextServiceDue) : undefined,
         lastServiceDate: dto.lastServiceDate ? new Date(dto.lastServiceDate) : undefined,
         insuranceExpiry: dto.insuranceExpiry ? new Date(dto.insuranceExpiry) : undefined,
+        purchaseDate: dto.purchaseDate ? new Date(dto.purchaseDate) : undefined,
       },
     });
 
@@ -152,6 +154,48 @@ export class CarsService {
     });
 
     return car;
+  }
+
+  async bulkImport(actor: AuthenticatedUser, dto: BulkImportCarsDto) {
+    const results: { success: number; failed: number; errors: { row: number; message: string }[] } = {
+      success: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    for (let i = 0; i < dto.cars.length; i++) {
+      const carDto = dto.cars[i];
+      try {
+        await this.prisma.car.create({
+          data: {
+            tenantId: actor.tenantId,
+            ...carDto,
+            nextServiceDue: carDto.nextServiceDue ? new Date(carDto.nextServiceDue) : undefined,
+            lastServiceDate: carDto.lastServiceDate ? new Date(carDto.lastServiceDate) : undefined,
+            insuranceExpiry: carDto.insuranceExpiry ? new Date(carDto.insuranceExpiry) : undefined,
+            purchaseDate: carDto.purchaseDate ? new Date(carDto.purchaseDate) : undefined,
+          },
+        });
+        results.success++;
+      } catch (err: unknown) {
+        results.failed++;
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        results.errors.push({ row: i + 2, message });
+      }
+    }
+
+    if (results.success > 0) {
+      await this.auditService.log({
+        tenantId: actor.tenantId,
+        userId: actor.sub,
+        actionType: AuditActionType.CAR_CREATED,
+        entityType: 'car',
+        entityId: 'bulk',
+        metadata: { importedCount: results.success },
+      });
+    }
+
+    return results;
   }
 
   async update(actor: AuthenticatedUser, id: string, dto: UpdateCarDto) {

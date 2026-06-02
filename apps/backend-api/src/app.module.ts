@@ -20,7 +20,10 @@ import { StorageModule } from './modules/storage/storage.module';
 import { TrackingModule } from './modules/tracking/tracking.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { MailerModule } from './modules/mailer/mailer.module';
+import { SchedulerModule } from './modules/scheduler/scheduler.module';
 // import { JobsModule } from './modules/jobs/jobs.module'; // requires Redis
+import { StripeModule } from './modules/stripe/stripe.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 import { AppLoggerModule } from './shared/logger/logger.module';
@@ -57,6 +60,9 @@ import { AppLoggerModule } from './shared/logger/logger.module';
     TrackingModule,
     NotificationsModule,
     TasksModule,
+    MailerModule,
+    SchedulerModule,
+    StripeModule,
     // JobsModule, // requires Redis
     CarCategoriesModule,
   ],

@@ -103,7 +103,7 @@ export default function CustomersPage() {
       </motion.div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-[14px]">
         {[
           { label: 'Total', value: stats.total, icon: Users, color: '#F472B6', glow: 'rgba(244,114,182,0.12)' },
           { label: 'Active', value: stats.active, icon: UserCheck, color: V.success, glow: 'rgba(0,194,122,0.12)' },

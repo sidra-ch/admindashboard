@@ -155,7 +155,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '14px' }}>
           <div>
             <label style={labelStyle}>Document Name *</label>
             <input style={inputStyle} value={docName} onChange={e => setDocName(e.target.value)} placeholder="e.g. Insurance 2025" />

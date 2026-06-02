@@ -203,7 +203,7 @@ export default function CarDetailPage({ params }: { params: Promise<{ id: string
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 360px', gap: '1.5rem', alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', gap: '1.5rem', alignItems: 'start' }} className="lg:!grid-cols-[minmax(0,1fr)_360px]">
         {/* Left: Info cards */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           {/* Vehicle Info */}

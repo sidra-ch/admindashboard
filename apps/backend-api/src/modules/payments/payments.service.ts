@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AuditActionType, InvoiceStatus, PaymentStatus, Prisma, RentalStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
+import { MailerService } from '../mailer/mailer.service';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user.type';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ListPaymentsQueryDto } from './dto/list-payments-query.dto';
@@ -11,6 +12,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
+    private readonly mailer: MailerService,
   ) {}
 
   async listForTenant(tenantId: string, query: ListPaymentsQueryDto) {
@@ -112,6 +114,50 @@ export class PaymentsService {
       metadata: { amountCents: payment.amountCents, method: payment.method },
     });
 
+    // Send payment receipt email (non-blocking)
+    if (payment.status === PaymentStatus.PAID && dto.customerId) {
+      const customer = await this.prisma.customer.findUnique({ where: { id: dto.customerId }, select: { email: true, firstName: true, lastName: true } });
+      const invoice = dto.invoiceId ? await this.prisma.invoice.findUnique({ where: { id: dto.invoiceId }, select: { invoiceNumber: true } }) : null;
+      const tenant = await this.prisma.tenant.findUnique({ where: { id: actor.tenantId }, select: { name: true } });
+      if (customer?.email) {
+        this.mailer.sendPaymentReceipt({
+          toEmail: customer.email,
+          customerName: `${customer.firstName} ${customer.lastName}`,
+          invoiceNumber: invoice?.invoiceNumber ?? payment.id,
+          amountCents: payment.amountCents,
+          paymentMethod: payment.method,
+          paidAt: payment.paidAt ?? new Date(),
+          tenantName: tenant?.name ?? 'FleetRent Pro',
+        });
+      }
+    }
+
     return payment;
+  }
+
+  async sendInvoiceEmail(actor: AuthenticatedUser, invoiceId: string, mailer: MailerService) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, tenantId: actor.tenantId },
+      include: {
+        rental: { include: { customer: { select: { email: true, firstName: true, lastName: true } } } },
+        tenant: { select: { name: true } },
+      },
+    });
+
+    if (!invoice) throw new Error('Invoice not found');
+    const customer = invoice.rental?.customer;
+    if (!customer?.email) throw new Error('Customer has no email address');
+
+    await mailer.sendInvoiceEmail({
+      toEmail: customer.email,
+      customerName: `${customer.firstName} ${customer.lastName}`,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      tenantId: actor.tenantId,
+      totalAmountCents: invoice.totalCents,
+      tenantName: invoice.tenant.name,
+    });
+
+    return { sent: true, toEmail: customer.email };
   }
 }
