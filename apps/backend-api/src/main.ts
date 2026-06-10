@@ -39,16 +39,20 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      const isVercelPreviewOrigin = /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin ?? '');
       const isLocalDevOrigin = /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(origin ?? '');
-      if (!origin || isLocalDevOrigin) {
+      if (!origin || isLocalDevOrigin || isVercelPreviewOrigin) {
         callback(null, true);
       } else if (allowedOrigins.some((o) => origin === o)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'), false);
+        // Do not throw from CORS callback; returning false avoids 500 on preflight.
+        callback(null, false);
       }
     },
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   const port = configService.get<number>('PORT', 4000);
