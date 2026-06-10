@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npx next build",
-  "outputDirectory": ".next",
-  "installCommand": "cd ../.. && npm install",
+  "buildCommand": "cd apps/admin-web && npm run build",
+  "outputDirectory": "apps/admin-web/.next",
+  "installCommand": "npm install",
   "framework": "nextjs",
-  "devCommand": "npx next dev"
+  "devCommand": "cd apps/admin-web && npm run dev"
 }
