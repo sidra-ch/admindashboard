@@ -15,3 +15,4 @@ coverage
 /apps/admin-web/.next
 /apps/backend-api/dist
 *.tsbuildinfo
+.vercel
