@@ -1,7 +1,7 @@
 {
-  "buildCommand": "cd apps/admin-web && npm run build",
+  "buildCommand": "npm run build -w @fleetrent/shared-types && npm run build -w @fleetrent/admin-web",
   "outputDirectory": "apps/admin-web/.next",
   "installCommand": "npm install",
   "framework": "nextjs",
-  "devCommand": "cd apps/admin-web && npm run dev"
+  "devCommand": "npm run dev:admin"
 }
